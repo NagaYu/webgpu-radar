@@ -1,0 +1,98 @@
+{
+  "name": "webgpu-radar",
+  "version": "0.1.0",
+  "description": "Real WebGPU capability detection for browser AI: compute-shader micro-benchmarks, a community quirks database, and tiered recommendations with WASM fallback — not just `if (navigator.gpu)`.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "packageManager": "pnpm@10.12.1",
+  "pnpm": {
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild"]
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": ["dist"],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./bench": {
+      "types": "./dist/bench/index.d.ts",
+      "import": "./dist/bench/index.js",
+      "require": "./dist/bench/index.cjs"
+    },
+    "./quirks": {
+      "types": "./dist/quirks/index.d.ts",
+      "import": "./dist/quirks/index.js",
+      "require": "./dist/quirks/index.cjs"
+    },
+    "./webllm": {
+      "types": "./dist/integrations/webllm.d.ts",
+      "import": "./dist/integrations/webllm.js",
+      "require": "./dist/integrations/webllm.cjs"
+    },
+    "./transformers-js": {
+      "types": "./dist/integrations/transformers-js.d.ts",
+      "import": "./dist/integrations/transformers-js.js",
+      "require": "./dist/integrations/transformers-js.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "playwright test",
+    "size": "node scripts/check-size.mjs",
+    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm size"
+  },
+  "keywords": [
+    "webgpu",
+    "gpu-detection",
+    "feature-detection",
+    "browser-ai",
+    "on-device-ai",
+    "llm",
+    "fallback",
+    "capability-detection",
+    "wasm",
+    "benchmark"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NagaYu/webgpu-radar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NagaYu/webgpu-radar/issues"
+  },
+  "homepage": "https://github.com/NagaYu/webgpu-radar#readme",
+  "peerDependencies": {
+    "@mlc-ai/web-llm": ">=0.2.0",
+    "@huggingface/transformers": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@mlc-ai/web-llm": {
+      "optional": true
+    },
+    "@huggingface/transformers": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@playwright/test": "^1.53.0",
+    "@webgpu/types": "^0.1.60",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0"
+  }
+}
