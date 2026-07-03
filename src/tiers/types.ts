@@ -91,6 +91,8 @@ export interface ProbeThresholds {
   minMatmulGflops: number;
   /** (full mode) Bandwidth below this (GB/s) downgrades to webgpu-limited. */
   minBandwidthGBps: number;
+  /** (full mode) Empirical working buffer below this (bytes) downgrades to webgpu-limited. */
+  minWorkingBufferBytes: number;
 }
 
 export interface ProbeOptions {
