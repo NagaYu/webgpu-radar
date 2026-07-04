@@ -78,6 +78,10 @@ export function recommendWebLLMModel(
     const maxBuffer = result.benchmarks.maxBuffer;
     const provenMB = maxBuffer?.ok === true ? maxBuffer.value.workingBytes / (1024 * 1024) : null;
 
+    // vram/2 approximates a model's largest single weight shard: runtimes
+    // split weights across bindings, but the biggest tensor group is
+    // commonly around half the total. Rough by design — a veto heuristic,
+    // not a guarantee.
     const fits = candidates.filter(
       (c) =>
         c.vramRequiredMB <= budgetMB && (provenMB === null || c.vramRequiredMB / 2 <= provenMB),
