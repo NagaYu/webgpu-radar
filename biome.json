@@ -31,7 +31,8 @@
       "coverage",
       "playwright-report",
       "test-results",
-      "pnpm-lock.yaml"
+      "pnpm-lock.yaml",
+      "site/webgpu-radar.js"
     ]
   }
 }

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    name: lint · typecheck · unit · build · size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      # Fails the build if the core bundle exceeds the 5KB gzip budget.
+      - run: pnpm size
+
+  browser:
+    name: browser tests (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      # GitHub's standard runners have no GPU. Observed behavior (see
+      # CONTRIBUTING.md): Chromium falls back to SwiftShader software WebGPU
+      # and probe() classifies it webgpu-limited (~1 GFLOPS); Playwright's
+      # Firefox/WebKit builds don't expose WebGPU at all and exercise the
+      # WASM fallback path. Tests assert shape and honesty, never speed.
+      - run: pnpm test:browser

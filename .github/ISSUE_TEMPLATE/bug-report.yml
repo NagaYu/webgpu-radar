@@ -1,0 +1,32 @@
+name: "Bug report"
+description: "Something in webgpu-radar itself is broken (crash, wrong API behavior, build/type problems)."
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Clear description of the bug, with the error message if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Smallest code snippet or repo that shows the problem.
+      render: ts
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: webgpu-radar version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Browser + version, OS, bundler/framework if relevant. A probe() report is even better.

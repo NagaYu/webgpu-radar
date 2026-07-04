@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>webgpu-radar — is WebGPU actually usable here?</title>
+    <meta
+      name="description"
+      content="Live demo: probe this browser's real WebGPU capability with compute micro-benchmarks and get a capability tier."
+    />
+    <style>
+      :root {
+        --bg: #0b0e14;
+        --panel: #131722;
+        --text: #e6e9f0;
+        --muted: #8b93a7;
+        --line: #232a3b;
+        --accent: #5eead4;
+        --full: #34d399;
+        --limited: #fbbf24;
+        --wasm: #60a5fa;
+        --bad: #f87171;
+        color-scheme: dark;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0 auto;
+        max-width: 760px;
+        padding: 2.5rem 1.25rem 4rem;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, sans-serif;
+      }
+      h1 { font-size: 1.6rem; margin: 0; }
+      h1 code { color: var(--accent); font-size: 1.5rem; }
+      .sub { color: var(--muted); margin: 0.35rem 0 2rem; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+      }
+      .tier-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+      #tier {
+        font: 700 1.05rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        padding: 0.5rem 0.9rem;
+        border-radius: 999px;
+        background: var(--line);
+      }
+      #tier.webgpu-full { background: color-mix(in srgb, var(--full) 22%, transparent); color: var(--full); }
+      #tier.webgpu-limited { background: color-mix(in srgb, var(--limited) 22%, transparent); color: var(--limited); }
+      #tier.wasm-simd, #tier.wasm-basic { background: color-mix(in srgb, var(--wasm) 22%, transparent); color: var(--wasm); }
+      #tier.unsupported { background: color-mix(in srgb, var(--bad) 22%, transparent); color: var(--bad); }
+      #meta { color: var(--muted); font-size: 0.9rem; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+      td, th { text-align: left; padding: 0.45rem 0.5rem; border-top: 1px solid var(--line); }
+      th { color: var(--muted); font-weight: 500; }
+      tr:first-child td, tr:first-child th { border-top: 0; }
+      td.num { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      ul { margin: 0.25rem 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.92rem; }
+      button {
+        font: 600 0.92rem/1 inherit;
+        color: var(--bg);
+        background: var(--accent);
+        border: 0;
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        cursor: pointer;
+      }
+      button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+      button:disabled { opacity: 0.5; cursor: wait; }
+      .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+      a { color: var(--accent); }
+      footer { color: var(--muted); font-size: 0.85rem; margin-top: 2rem; }
+      #copied { color: var(--full); font-size: 0.9rem; align-self: center; display: none; }
+    </style>
+  </head>
+  <body>
+    <h1><code>webgpu-radar</code></h1>
+    <p class="sub">
+      <code>if (navigator.gpu)</code> tells you WebGPU <em>exists</em>. This probe tells you whether
+      it's actually <em>usable</em> — by running real compute shaders, right here, right now.
+    </p>
+
+    <div class="card">
+      <div class="tier-row">
+        <span id="tier">probing…</span>
+        <span id="meta"></span>
+      </div>
+      <ul id="reasons"></ul>
+    </div>
+
+    <div class="card">
+      <table id="bench">
+        <tr><th>Environment</th><td id="env" class="num">…</td></tr>
+        <tr><th>GPU (adapter.info)</th><td id="gpu" class="num">…</td></tr>
+        <tr><th>Shader compile</th><td id="b-compile" class="num">…</td></tr>
+        <tr><th>Matmul throughput</th><td id="b-matmul" class="num">…</td></tr>
+        <tr><th>Round-trip bandwidth</th><td id="b-bandwidth" class="num">quick mode — run full probe</td></tr>
+        <tr><th>Max usable buffer</th><td id="b-maxbuffer" class="num">quick mode — run full probe</td></tr>
+        <tr><th>WASM fallback</th><td id="wasm" class="num">…</td></tr>
+      </table>
+      <div class="actions">
+        <button id="run-full">Run full probe (~2s)</button>
+        <button id="copy" class="ghost">Copy report (Markdown)</button>
+        <button id="download" class="ghost">Download JSON</button>
+        <span id="copied">copied ✓</span>
+      </div>
+    </div>
+
+    <footer>
+      Everything runs locally in your tab — no telemetry, no server, ever. Unexpected result?
+      <a id="issue-link" href="https://github.com/NagaYu/webgpu-radar/issues/new?template=quirk-report.yml"
+        >Open a quirk report</a
+      >
+      and paste the copied Markdown — that's how the community quirks database grows.
+      · <a href="https://github.com/NagaYu/webgpu-radar">GitHub</a>
+    </footer>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

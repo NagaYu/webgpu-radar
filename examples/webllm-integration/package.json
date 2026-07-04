@@ -1,0 +1,16 @@
+{
+  "name": "webgpu-radar-example-webllm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.79",
+    "webgpu-radar": "file:../.."
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}

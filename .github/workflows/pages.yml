@@ -1,0 +1,42 @@
+name: Deploy demo site
+
+# Deploys the static demo (site/) to GitHub Pages on pushes to main.
+# The site runs probe() live in the visitor's browser — no server, no telemetry.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "src/**", "package.json", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # Copies the built ESM bundle into site/ so the page is fully static.
+      - run: node scripts/prepare-site.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

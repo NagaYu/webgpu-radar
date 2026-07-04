@@ -1,0 +1,21 @@
+name: "Feature request"
+description: "Suggest an improvement or new capability."
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the use case first — it matters more than the proposed API.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Sketch of how it could work. Remember the core constraints — zero runtime dependencies, browser-only, no telemetry, 5KB core budget.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

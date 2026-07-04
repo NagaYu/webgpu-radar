@@ -1,0 +1,37 @@
+name: "Quirk report"
+description: "Report a browser/OS/GPU combination where WebGPU misbehaves (or webgpu-radar misjudges it). This is how the quirks database grows — thank you!"
+title: "[quirk] "
+labels: ["quirk-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Two clicks to a great report:** run `probe()` where you saw the problem (the [live demo](https://nagayu.github.io/webgpu-radar/) works), press **Copy report**, and paste it below. The report contains only browser/OS/GPU-vendor info — no UA string, no fingerprinting data. It never leaves your machine until you paste it here.
+  - type: textarea
+    id: report
+    attributes:
+      label: webgpu-radar report
+      description: Paste the Markdown report from generateReport() / the demo page's Copy report button.
+      placeholder: "## webgpu-radar v0.1.0 report ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What looks wrong?
+      description: What did you expect, and what actually happened? (e.g. "tier says webgpu-full but compute results are corrupted", "device is lost as soon as any real workload runs")
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Upstream bug link (if known)
+      description: A crbug/WebKit Bugzilla/Mozilla link makes the quirk verifiable and much easier to accept.
+      placeholder: "https://bugs.webkit.org/show_bug.cgi?id=..."
+  - type: checkboxes
+    id: repro
+    attributes:
+      label: Reproducibility
+      options:
+        - label: I can reproduce this today on the environment in the report
+          required: true

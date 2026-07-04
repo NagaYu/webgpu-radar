@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>webgpu-radar — WebLLM integration example</title>
+    <style>
+      body { font: 16px/1.6 system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; }
+      pre { background: #f4f5f7; padding: 1rem; border-radius: 8px; white-space: pre-wrap; }
+      button { font: inherit; padding: 0.5rem 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>webgpu-radar → WebLLM</h1>
+    <p>
+      Probe first, then let the recommendation decide whether (and with which model) to spin up
+      in-browser inference.
+    </p>
+    <pre id="out">probing…</pre>
+    <button id="go" hidden>Load recommended model &amp; generate (downloads ~1&nbsp;GB)</button>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

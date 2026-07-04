@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>webgpu-radar — vanilla example</title>
+    <style>
+      body { font: 16px/1.6 system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; }
+      pre { background: #f4f5f7; padding: 1rem; border-radius: 8px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>webgpu-radar / vanilla</h1>
+    <p>Tier: <strong id="tier">probing…</strong></p>
+    <pre id="out"></pre>
+    <script type="module">
+      // In your app: import { probe } from "webgpu-radar";
+      // This example imports the locally built bundle instead (see README).
+      import { probe } from "../../dist/index.js";
+
+      const result = await probe(); // quick mode, ~100ms
+      document.getElementById("tier").textContent = result.tier;
+      document.getElementById("out").textContent = JSON.stringify(result, null, 2);
+
+      // The typical gate in a real app:
+      if (result.tier === "webgpu-full") {
+        console.log("→ enable the in-browser AI feature");
+      } else if (result.tier === "webgpu-limited" || result.tier === "wasm-simd") {
+        console.log("→ small models only, or fall back to WASM");
+      } else {
+        console.log("→ skip on-device inference; use a hosted API");
+      }
+    </script>
+  </body>
+</html>
