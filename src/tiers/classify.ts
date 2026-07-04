@@ -3,7 +3,14 @@
  * tree exactly; every numeric threshold is named here, justified here, and
  * overridable via ProbeOptions.thresholds.
  */
-import type { BenchmarkResults, MatchedQuirk, ProbeThresholds, Tier, WasmInfo } from "./types.js";
+import type {
+  BenchOutcome,
+  BenchmarkResults,
+  MatchedQuirk,
+  ProbeThresholds,
+  Tier,
+  WasmInfo,
+} from "./types.js";
 
 /**
  * Default thresholds and their rationale.
@@ -95,83 +102,48 @@ export function classify(input: ClassifyInput): Classification {
     return { tier: "webgpu-limited", reasons };
   }
 
-  let limited = false;
-
   // Steps 4b–c: quick benchmarks. On a live device, a benchmark that
   // errored or timed out is itself evidence of a broken implementation —
-  // treated the same as missing its threshold.
-  const compile = input.benchmarks.shaderCompile;
-  if (!compile) {
-    limited = true;
-    reasons.push("shader-compile benchmark did not run");
-  } else if (!compile.ok) {
-    limited = true;
-    reasons.push(
-      compile.timedOut
-        ? "shader-compile benchmark timed out"
-        : `shader-compile benchmark failed: ${compile.error}`,
-    );
-  } else if (compile.value.ms > t.maxShaderCompileMs) {
-    limited = true;
-    reasons.push(
-      `shader compile took ${compile.value.ms.toFixed(0)}ms (threshold ${t.maxShaderCompileMs}ms)`,
-    );
-  }
-
-  const matmul = input.benchmarks.matmul;
-  if (!matmul) {
-    limited = true;
-    reasons.push("matmul benchmark did not run");
-  } else if (!matmul.ok) {
-    limited = true;
-    reasons.push(
-      matmul.timedOut ? "matmul benchmark timed out" : `matmul benchmark failed: ${matmul.error}`,
-    );
-  } else if (matmul.value.gflops < t.minMatmulGflops) {
-    limited = true;
-    reasons.push(
-      `matmul throughput ${matmul.value.gflops.toFixed(1)} GFLOPS (floor ${t.minMatmulGflops})`,
-    );
-  }
-
-  // Step 4e: full-mode probes may further downgrade. Unlike the quick pair,
-  // a full-mode probe that didn't run is not a failure (quick mode simply
-  // skips them) — only present-and-bad results downgrade.
+  // treated the same as missing its threshold. A quick benchmark that did
+  // not run at all also downgrades (we can't certify webgpu-full without
+  // evidence).
+  // Step 4e: full-mode probes may further downgrade, but one that didn't
+  // run is not a failure — quick mode legitimately skips them, so
+  // `requireRun` is false and only present-and-bad results count.
+  const mib = (n: number) => `${(n / 1048576).toFixed(0)} MiB`;
+  const b = input.benchmarks;
+  const checks: Array<string | null> = [
+    benchIssue(b.shaderCompile, "shader-compile", true, (v) =>
+      v.ms > t.maxShaderCompileMs
+        ? `shader compile took ${v.ms.toFixed(0)}ms (threshold ${t.maxShaderCompileMs}ms)`
+        : null,
+    ),
+    benchIssue(b.matmul, "matmul", true, (v) =>
+      v.gflops < t.minMatmulGflops
+        ? `matmul throughput ${v.gflops.toFixed(1)} GFLOPS (floor ${t.minMatmulGflops})`
+        : null,
+    ),
+  ];
   if (input.mode === "full") {
-    const bandwidth = input.benchmarks.bandwidth;
-    if (bandwidth && !bandwidth.ok) {
-      limited = true;
-      reasons.push(
-        bandwidth.timedOut
-          ? "bandwidth benchmark timed out"
-          : `bandwidth benchmark failed: ${bandwidth.error}`,
-      );
-    } else if (bandwidth?.ok && bandwidth.value.gbps < t.minBandwidthGBps) {
-      limited = true;
-      reasons.push(
-        `bandwidth ${bandwidth.value.gbps.toFixed(2)} GB/s (floor ${t.minBandwidthGBps})`,
-      );
-    }
-
-    const maxBuffer = input.benchmarks.maxBuffer;
-    if (maxBuffer && !maxBuffer.ok) {
-      limited = true;
-      reasons.push(
-        maxBuffer.timedOut
-          ? "max-buffer probe timed out"
-          : `max-buffer probe failed: ${maxBuffer.error}`,
-      );
-    } else if (maxBuffer?.ok && maxBuffer.value.workingBytes < t.minWorkingBufferBytes) {
-      limited = true;
-      reasons.push(
-        `largest working buffer ${(maxBuffer.value.workingBytes / 1048576).toFixed(0)} MiB ` +
-          `(floor ${(t.minWorkingBufferBytes / 1048576).toFixed(0)} MiB; ` +
-          `reported ${(maxBuffer.value.reportedBytes / 1048576).toFixed(0)} MiB)`,
-      );
-    }
+    checks.push(
+      benchIssue(b.bandwidth, "bandwidth", false, (v) =>
+        v.gbps < t.minBandwidthGBps
+          ? `bandwidth ${v.gbps.toFixed(2)} GB/s (floor ${t.minBandwidthGBps})`
+          : null,
+      ),
+      benchIssue(b.maxBuffer, "max-buffer", false, (v) =>
+        v.workingBytes < t.minWorkingBufferBytes
+          ? `largest working buffer ${mib(v.workingBytes)} (floor ${mib(t.minWorkingBufferBytes)}; reported ${mib(v.reportedBytes)})`
+          : null,
+      ),
+    );
   }
+  const issues = checks.filter((r): r is string => r !== null);
 
-  if (limited) return { tier: "webgpu-limited", reasons };
+  if (issues.length > 0) {
+    reasons.push(...issues);
+    return { tier: "webgpu-limited", reasons };
+  }
 
   // Step 4d.
   const warnings = input.quirks.filter((q) => q.severity === "warning");
@@ -180,6 +152,25 @@ export function classify(input: ClassifyInput): Classification {
   }
   reasons.push("device obtained and all benchmarks cleared their thresholds");
   return { tier: "webgpu-full", reasons };
+}
+
+/**
+ * Shared shape of one benchmark check: not-run (when required), errored,
+ * timed out, or below threshold — each yields a human-readable reason.
+ */
+function benchIssue<T>(
+  outcome: BenchOutcome<T> | null,
+  label: string,
+  requireRun: boolean,
+  belowThreshold: (value: T) => string | null,
+): string | null {
+  if (!outcome) return requireRun ? `${label} benchmark did not run` : null;
+  if (!outcome.ok) {
+    return outcome.timedOut
+      ? `${label} benchmark timed out`
+      : `${label} benchmark failed: ${outcome.error}`;
+  }
+  return belowThreshold(outcome.value);
 }
 
 /** Step 5 of the tree. */

@@ -21,32 +21,23 @@ const START_BYTES = 64 * 1024 * 1024;
 
 // Writes a sentinel into the last element; reading it back proves the whole
 // buffer range is addressable, not merely allocated.
-const TAIL_WRITE_WGSL = `
-@group(0) @binding(0) var<storage, read_write> buf: array<u32>;
-@compute @workgroup_size(1)
-fn main() {
-  buf[arrayLength(&buf) - 1u] = 0xC0FFEEu;
-}
-`;
+const TAIL_WRITE_WGSL =
+  "@group(0)@binding(0)var<storage,read_write>b:array<u32>;" +
+  "@compute@workgroup_size(1)fn main(){b[arrayLength(&b)-1u]=0xC0FFEEu;}";
 
 async function roundTrips(device: GPUDevice, pipeline: GPUComputePipeline, size: number) {
   let buffer: GPUBuffer | null = null;
   let readback: GPUBuffer | null = null;
   try {
+    const U = GPUBufferUsage;
     device.pushErrorScope("out-of-memory");
     device.pushErrorScope("validation");
-    buffer = device.createBuffer({
-      size,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    });
+    buffer = device.createBuffer({ size, usage: U.STORAGE | U.COPY_SRC });
     const bindGroup = device.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
       entries: [{ binding: 0, resource: { buffer } }],
     });
-    readback = device.createBuffer({
-      size: 4,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    });
+    readback = device.createBuffer({ size: 4, usage: U.COPY_DST | U.MAP_READ });
     const encoder = device.createCommandEncoder();
     const pass = encoder.beginComputePass();
     pass.setPipeline(pipeline);

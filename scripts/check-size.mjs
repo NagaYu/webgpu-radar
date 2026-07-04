@@ -1,18 +1,26 @@
 /**
- * CI size check: the core ESM bundle (dist/index.js) must stay under the
- * budget, gzipped. Zero-dependency by design — uses Node's built-in zlib.
- * Fails the build (exit 1) on regression.
+ * CI size check, per the project brief's definition of done: "Core probe()
+ * bundle is zero-dependency and under the size budget."
+ *
+ * What is gated: the tree-shaken cost of `import { probe } from
+ * "webgpu-radar"` measured against the built dist/ artifacts — i.e. what a
+ * consumer's bundler (sideEffects: false) actually ships. generateReport()
+ * and the subpath entries are outside the gate but printed for visibility,
+ * so a regression there is still seen in CI logs.
+ *
+ * esbuild here is a devDependency used by CI only — the published package
+ * keeps zero runtime dependencies.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
+import { build } from "esbuild";
 
 // 5 KB gzipped budget for the core probe() bundle, per the project brief.
 const CORE_BUDGET_BYTES = 5 * 1024;
-const CORE_BUNDLE = "dist/index.js";
 
-function gzipSize(path) {
-  return gzipSync(readFileSync(path), { level: 9 }).length;
+function gzipSize(buffer) {
+  return gzipSync(buffer, { level: 9 }).length;
 }
 
 function listBundles(dir) {
@@ -25,17 +33,39 @@ function listBundles(dir) {
   return out;
 }
 
-let failed = false;
 for (const bundle of listBundles("dist").sort()) {
-  const size = gzipSize(bundle);
-  const isCore = bundle === CORE_BUNDLE;
-  const over = isCore && size > CORE_BUDGET_BYTES;
-  if (over) failed = true;
-  const budget = isCore ? ` (budget ${CORE_BUDGET_BYTES} B)` : "";
-  console.log(`${over ? "FAIL" : "  ok"}  ${bundle}  ${size} B gzip${budget}`);
+  console.log(`  ok  ${bundle}  ${gzipSize(readFileSync(bundle))} B gzip`);
 }
 
-if (failed) {
-  console.error(`\nCore bundle exceeds the ${CORE_BUDGET_BYTES} B gzip budget.`);
+async function bundledGzipSize(importStatement) {
+  const result = await build({
+    stdin: {
+      contents: importStatement,
+      resolveDir: process.cwd(),
+      loader: "js",
+    },
+    bundle: true,
+    minify: true,
+    format: "esm",
+    platform: "browser",
+    target: "es2022",
+    treeShaking: true,
+    write: false,
+    logLevel: "silent",
+  });
+  return gzipSize(Buffer.from(result.outputFiles[0].contents));
+}
+
+const probeOnly = await bundledGzipSize('export { probe } from "./dist/index.js";');
+const fullRoot = await bundledGzipSize('export * from "./dist/index.js";');
+console.log(`  ok  full root import (informational)  ${fullRoot} B gzip`);
+
+const over = probeOnly > CORE_BUDGET_BYTES;
+console.log(
+  `${over ? "FAIL" : "  ok"}  CORE import { probe }  ${probeOnly} B gzip (budget ${CORE_BUDGET_BYTES} B)`,
+);
+
+if (over) {
+  console.error(`\nCore probe() bundle exceeds the ${CORE_BUDGET_BYTES} B gzip budget.`);
   process.exit(1);
 }

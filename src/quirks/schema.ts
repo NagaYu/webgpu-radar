@@ -2,8 +2,15 @@
  * Quirks database schema.
  *
  * A quirk is a known browser/GPU/OS-specific WebGPU bug that feature
- * detection and benchmarks can miss. Entries are community-maintained via
- * pull requests — see CONTRIBUTING.md.
+ * detection and benchmarks can miss. Entries live in db.json (kept
+ * comment-free because it ships inside the bundle) and are
+ * community-maintained via pull requests — see CONTRIBUTING.md.
+ *
+ * db.json rules: every entry must match this schema, carry a verifiedDate
+ * (the ISO date someone actually reproduced it), and ideally a sourceUrl
+ * to an upstream bug tracker. Do not add entries you have not verified —
+ * a wrong quirk entry is worse than a missing one, because developers act
+ * on it.
  */
 
 export interface QuirkMatch {

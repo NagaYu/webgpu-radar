@@ -15,24 +15,11 @@ const DEFAULT_SIZE = 256;
 const DEFAULT_ITERATIONS = 4;
 const WORKGROUP_DIM = 8;
 
+// One thread per output element: c[y][x] = dot(row y of a, column x of b).
+// Kept dense (short names, no whitespace) because the string survives
+// minification verbatim and the core bundle has a 5KB budget.
 function matmulWgsl(n: number): string {
-  return `
-@group(0) @binding(0) var<storage, read> a: array<f32>;
-@group(0) @binding(1) var<storage, read> b: array<f32>;
-@group(0) @binding(2) var<storage, read_write> c: array<f32>;
-@compute @workgroup_size(${WORKGROUP_DIM}, ${WORKGROUP_DIM})
-fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-  let n = ${n}u;
-  let row = gid.y;
-  let col = gid.x;
-  if (row >= n || col >= n) { return; }
-  var sum = 0.0;
-  for (var k = 0u; k < n; k = k + 1u) {
-    sum = sum + a[row * n + k] * b[k * n + col];
-  }
-  c[row * n + col] = sum;
-}
-`;
+  return `@group(0)@binding(0)var<storage,read>a:array<f32>;@group(0)@binding(1)var<storage,read>b:array<f32>;@group(0)@binding(2)var<storage,read_write>c:array<f32>;@compute@workgroup_size(${WORKGROUP_DIM},${WORKGROUP_DIM})fn main(@builtin(global_invocation_id)g:vec3<u32>){let n=${n}u;if(g.y>=n||g.x>=n){return;}var s=0.0;for(var k=0u;k<n;k=k+1u){s=s+a[g.y*n+k]*b[k*n+g.x];}c[g.y*n+g.x]=s;}`;
 }
 
 export interface MatmulOptions {
@@ -55,13 +42,14 @@ export async function benchMatmul(
     compute: { module, entryPoint: "main" },
   });
 
-  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+  const U = GPUBufferUsage; // aliased: this global's long member paths don't minify
+  const usage = U.STORAGE | U.COPY_DST;
   const a = device.createBuffer({ size: bytes, usage });
   const b = device.createBuffer({ size: bytes, usage });
-  const c = device.createBuffer({ size: bytes, usage: usage | GPUBufferUsage.COPY_SRC });
+  const c = device.createBuffer({ size: bytes, usage: usage | U.COPY_SRC });
   const readback = device.createBuffer({
     size: 4,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    usage: U.COPY_DST | U.MAP_READ,
   });
 
   try {

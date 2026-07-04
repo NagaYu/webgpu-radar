@@ -1,4 +1,3 @@
 {
-  "_comment": "Community-maintained WebGPU quirks database. Entries must match the QuirkEntry schema in schema.ts and include a verifiedDate. Please contribute via the quirk-report issue template or a PR — see CONTRIBUTING.md. Do not add entries you have not verified.",
   "entries": []
 }

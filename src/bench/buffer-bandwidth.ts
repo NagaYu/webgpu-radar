@@ -20,14 +20,9 @@ export async function benchBufferBandwidth(
 ): Promise<BandwidthBench> {
   const bytes = options?.bytes ?? DEFAULT_BYTES;
 
-  const gpuBuffer = device.createBuffer({
-    size: bytes,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-  });
-  const readback = device.createBuffer({
-    size: bytes,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  });
+  const U = GPUBufferUsage;
+  const gpuBuffer = device.createBuffer({ size: bytes, usage: U.COPY_DST | U.COPY_SRC });
+  const readback = device.createBuffer({ size: bytes, usage: U.COPY_DST | U.MAP_READ });
 
   try {
     const payload = new Uint8Array(bytes);

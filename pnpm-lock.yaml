@@ -24,6 +24,9 @@ importers:
       '@webgpu/types':
         specifier: ^0.1.60
         version: 0.1.71
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(postcss@8.5.16)(typescript@5.9.3)

@@ -13,19 +13,12 @@ import type { ShaderCompileBench } from "../tiers/types.js";
 
 // Trivial but not degenerate: a loop and a storage write, so the backend
 // compiler does real codegen work instead of constant-folding to a no-op.
-const PROBE_WGSL = `
-@group(0) @binding(0) var<storage, read_write> out: array<f32>;
-@compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-  var acc = 0.0;
-  for (var i = 0u; i < 16u; i = i + 1u) {
-    acc = acc + f32(i) * 0.5;
-  }
-  if (gid.x < arrayLength(&out)) {
-    out[gid.x] = acc;
-  }
-}
-`;
+// (Dense formatting: WGSL strings survive minification verbatim.)
+const PROBE_WGSL =
+  "@group(0)@binding(0)var<storage,read_write>o:array<f32>;" +
+  "@compute@workgroup_size(64)fn main(@builtin(global_invocation_id)g:vec3<u32>){" +
+  "var a=0.0;for(var i=0u;i<16u;i=i+1u){a=a+f32(i)*0.5;}" +
+  "if(g.x<arrayLength(&o)){o[g.x]=a;}}";
 
 export async function benchShaderCompile(device: GPUDevice): Promise<ShaderCompileBench> {
   const start = performance.now();

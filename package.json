@@ -76,8 +76,8 @@
   },
   "homepage": "https://github.com/NagaYu/webgpu-radar#readme",
   "peerDependencies": {
-    "@mlc-ai/web-llm": ">=0.2.0",
-    "@huggingface/transformers": ">=3.0.0"
+    "@huggingface/transformers": ">=3.0.0",
+    "@mlc-ai/web-llm": ">=0.2.0"
   },
   "peerDependenciesMeta": {
     "@mlc-ai/web-llm": {
@@ -91,6 +91,7 @@
     "@biomejs/biome": "^1.9.4",
     "@playwright/test": "^1.53.0",
     "@webgpu/types": "^0.1.60",
+    "esbuild": "^0.28.1",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.0"

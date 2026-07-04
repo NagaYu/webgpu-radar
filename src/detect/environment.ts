@@ -31,29 +31,23 @@ export function isBrowserEnvironment(): boolean {
   return typeof navigator !== "undefined" && typeof navigator.userAgent === "string";
 }
 
-/** Map a userAgentData.platform / UA fragment to our canonical OS slug. */
-function osFromPlatform(platform: string): string {
-  const p = platform.toLowerCase();
+/**
+ * Map a userAgentData.platform value OR a raw UA string to our canonical OS
+ * slug — the same substrings disambiguate both ("macOS"/"Macintosh" share
+ * "mac", etc.). Order matters: Android UAs contain "Linux"; iOS tokens must
+ * win over "mac". iPadOS 13+ masquerades as desktop Safari ("Macintosh")
+ * but is the only "mac" with multi-touch — the standard disambiguation
+ * heuristic (real Macs report maxTouchPoints 0).
+ */
+function osFrom(s: string): string {
+  const p = s.toLowerCase();
   if (p.includes("android")) return "android";
-  if (p.includes("ios") || p.includes("iphone") || p.includes("ipad")) return "ios";
-  if (p.includes("mac")) return "macos";
-  if (p.includes("win")) return "windows";
-  if (p.includes("linux") || p.includes("cros")) return "linux";
-  return "unknown";
-}
-
-function osFromUserAgent(ua: string): string {
-  // Order matters: Android UAs contain "Linux"; iOS must win over macOS.
-  if (/android/i.test(ua)) return "android";
-  if (/iphone|ipad|ipod/i.test(ua)) return "ios";
-  // iPadOS 13+ masquerades as desktop Safari ("Macintosh") but is the only
-  // "macOS" with multi-touch — the standard disambiguation heuristic.
-  if (/macintosh/i.test(ua)) {
-    if (typeof navigator !== "undefined" && navigator.maxTouchPoints > 1) return "ios";
-    return "macos";
+  if (/iphone|ipad|ipod|ios/.test(p)) return "ios";
+  if (p.includes("mac")) {
+    return typeof navigator !== "undefined" && navigator.maxTouchPoints > 1 ? "ios" : "macos";
   }
-  if (/windows/i.test(ua)) return "windows";
-  if (/cros|linux/i.test(ua)) return "linux";
+  if (p.includes("win")) return "windows";
+  if (p.includes("cros") || p.includes("linux")) return "linux";
   return "unknown";
 }
 
@@ -66,48 +60,38 @@ function versionAfter(ua: string, token: string): string {
 function fromUserAgentData(
   uaData: NavigatorUAData,
 ): Pick<EnvironmentInfo, "browser" | "browserVersion"> | null {
-  // "Not_A Brand"-style GREASE entries must be ignored; match known brands.
-  // Check specific brands before "Chromium" so Edge/Chrome win over the base.
-  const table: ReadonlyArray<readonly [pattern: RegExp, slug: string]> = [
-    [/edge/i, "edge"],
-    [/opera/i, "opera"],
-    [/brave/i, "brave"],
-    [/chrome/i, "chrome"],
-    [/chromium/i, "chromium"],
-    [/firefox/i, "firefox"],
-    [/safari/i, "safari"],
-  ];
-  for (const [pattern, slug] of table) {
-    const hit = uaData.brands.find((b) => pattern.test(b.brand));
+  // "Not_A Brand"-style GREASE entries must be ignored; match known brands
+  // by slug substring ("edge" ⊂ "Microsoft Edge"). Specific brands before
+  // "chromium" so Edge/Chrome/Brave win over the base engine brand.
+  for (const slug of ["edge", "opera", "brave", "chrome", "chromium", "firefox", "safari"]) {
+    const hit = uaData.brands.find((b) => b.brand.toLowerCase().includes(slug));
     if (hit) return { browser: slug, browserVersion: hit.version };
   }
   return null;
 }
 
+// [detect token → slug, version token]. Order matters: every Chromium UA
+// also contains "Chrome" and "Safari", iOS ports use their own tokens
+// (CriOS/FxiOS/EdgiOS), and real Safari alone carries "Version/x.y".
+// "Edge?" covers both modern "Edg/" and legacy "Edge/".
+const UA_BROWSERS: ReadonlyArray<readonly [detect: string, slug: string, version: string]> = [
+  ["EdgiOS", "edge", "EdgiOS"],
+  ["EdgA", "edge", "EdgA"],
+  ["Edg", "edge", "Edge?"],
+  ["OPR", "opera", "OPR"],
+  ["SamsungBrowser", "samsung", "SamsungBrowser"],
+  ["FxiOS", "firefox", "FxiOS"],
+  ["Firefox", "firefox", "Firefox"],
+  ["CriOS", "chrome", "CriOS"],
+  ["Chrome", "chrome", "Chrome"],
+  ["Safari", "safari", "Version"],
+];
+
 function browserFromUserAgent(ua: string): Pick<EnvironmentInfo, "browser" | "browserVersion"> {
-  // Order matters: every Chromium UA also contains "Chrome" and "Safari",
-  // and iOS ports use their own tokens (CriOS/FxiOS/EdgiOS).
-  if (/edgios|edga|edg\//i.test(ua) || /\bedge\//i.test(ua)) {
-    return {
-      browser: "edge",
-      browserVersion:
-        versionAfter(ua, "EdgiOS") || versionAfter(ua, "EdgA") || versionAfter(ua, "Edge?"),
-    };
-  }
-  if (/opr\//i.test(ua)) return { browser: "opera", browserVersion: versionAfter(ua, "OPR") };
-  if (/samsungbrowser/i.test(ua)) {
-    return { browser: "samsung", browserVersion: versionAfter(ua, "SamsungBrowser") };
-  }
-  if (/fxios/i.test(ua)) return { browser: "firefox", browserVersion: versionAfter(ua, "FxiOS") };
-  if (/firefox\//i.test(ua)) {
-    return { browser: "firefox", browserVersion: versionAfter(ua, "Firefox") };
-  }
-  if (/crios/i.test(ua)) return { browser: "chrome", browserVersion: versionAfter(ua, "CriOS") };
-  if (/chrome\//i.test(ua))
-    return { browser: "chrome", browserVersion: versionAfter(ua, "Chrome") };
-  if (/safari\//i.test(ua)) {
-    // Real Safari carries "Version/x.y"; Chromium UAs (filtered above) don't.
-    return { browser: "safari", browserVersion: versionAfter(ua, "Version") };
+  for (const [detect, slug, version] of UA_BROWSERS) {
+    if (new RegExp(`${detect}e?/`, "i").test(ua)) {
+      return { browser: slug, browserVersion: versionAfter(ua, version) };
+    }
   }
   return { browser: "unknown", browserVersion: "" };
 }
@@ -125,7 +109,7 @@ export function detectEnvironment(): EnvironmentInfo {
 
   const fromHints = uaData ? fromUserAgentData(uaData) : null;
   const { browser, browserVersion } = fromHints ?? browserFromUserAgent(ua);
-  const os = uaData?.platform ? osFromPlatform(uaData.platform) : osFromUserAgent(ua);
   // userAgentData.platform can be empty on some Chromium builds; fall back.
-  return { browser, browserVersion, os: os === "unknown" ? osFromUserAgent(ua) : os };
+  const os = osFrom(uaData?.platform || ua);
+  return { browser, browserVersion, os: os === "unknown" ? osFrom(ua) : os };
 }
