@@ -8,6 +8,18 @@
       name="description"
       content="Live demo: probe this browser's real WebGPU capability with compute micro-benchmarks and get a capability tier."
     />
+    <link rel="canonical" href="https://nagayu.github.io/webgpu-radar/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nagayu.github.io/webgpu-radar/" />
+    <meta property="og:title" content="webgpu-radar — is WebGPU actually usable here?" />
+    <meta
+      property="og:description"
+      content="Probe this browser's real WebGPU capability with compute micro-benchmarks — then share your tier as a card. Runs locally, no telemetry."
+    />
+    <meta property="og:image" content="https://nagayu.github.io/webgpu-radar/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <style>
       :root {
         --bg: #0b0e14;
@@ -74,6 +86,34 @@
       a { color: var(--accent); }
       footer { color: var(--muted); font-size: 0.85rem; margin-top: 2rem; }
       #copied { color: var(--full); font-size: 0.9rem; align-self: center; display: none; }
+      #card-hint { color: var(--muted); font-size: 0.85rem; align-self: center; display: none; }
+      .share-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+      }
+      .share-head h2 { font-size: 1rem; margin: 0; font-weight: 600; }
+      .size-toggle { display: flex; gap: 0.4rem; }
+      .size-toggle button {
+        font-size: 0.8rem;
+        padding: 0.35rem 0.7rem;
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+      }
+      .size-toggle button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+      #share-card {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+      #share-card.square { max-width: 420px; margin: 0 auto; }
     </style>
   </head>
   <body>
@@ -105,8 +145,25 @@
         <button id="run-full">Run full probe (~2s)</button>
         <button id="copy" class="ghost">Copy report (Markdown)</button>
         <button id="download" class="ghost">Download JSON</button>
+        <button id="share-x">Share on X</button>
+        <button id="card-download" class="ghost">Download card</button>
+        <button id="card-copy" class="ghost">Copy card image</button>
         <span id="copied">copied ✓</span>
+        <span id="card-hint"></span>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="share-head">
+        <h2>Shareable result card</h2>
+        <div class="size-toggle" role="group" aria-label="Card size">
+          <button id="size-social" aria-pressed="true">1200×630</button>
+          <button id="size-square" aria-pressed="false">1080×1080</button>
+        </div>
+      </div>
+      <canvas id="share-card" width="1200" height="630" aria-label="Probe result card preview"
+        >Your browser does not support canvas.</canvas
+      >
     </div>
 
     <footer>
