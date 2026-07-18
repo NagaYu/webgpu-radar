@@ -100,8 +100,14 @@ $("download").addEventListener("click", () => {
 function renderCard() {
   if (!lastResult) return;
   const canvas = $("share-card");
-  renderShareCard(lastResult, cardSize, canvas);
-  canvas.classList.toggle("square", cardSize === "square");
+  try {
+    renderShareCard(lastResult, cardSize, canvas);
+    canvas.classList.toggle("square", cardSize === "square");
+  } catch (err) {
+    // The card is a bonus. A drawing failure (exotic canvas quirks) must
+    // never take the probe results down with it.
+    console.warn("share card render failed:", err);
+  }
 }
 
 function setCardSize(size) {

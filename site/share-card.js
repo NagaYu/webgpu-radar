@@ -44,6 +44,26 @@ function hexToRgba(hex, alpha) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
+/**
+ * ctx.roundRect with an arcTo fallback — roundRect only exists in engines
+ * from ~2023 (Chrome 99+ / Firefox 112+ / Safari 16.4+), and this demo is
+ * exactly the page people open in old browsers to check WebGPU support.
+ * Appends to the current path; callers beginPath() first, as with roundRect.
+ */
+function roundedRectPath(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, w, h, r);
+    return;
+  }
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
 /** Truncate text with an ellipsis so it fits within maxWidth at the current font. */
 function fitText(ctx, text, maxWidth) {
   if (ctx.measureText(text).width <= maxWidth) return text;
@@ -142,7 +162,7 @@ function drawTierPill(ctx, tier, x, y, fontPx) {
   const h = fontPx * 1.9;
   ctx.fillStyle = hexToRgba(color, 0.16);
   ctx.beginPath();
-  ctx.roundRect(x, y, textWidth + padX * 2, h, h / 2);
+  roundedRectPath(ctx, x, y, textWidth + padX * 2, h, h / 2);
   ctx.fill();
   ctx.fillStyle = color;
   ctx.textBaseline = "middle";
@@ -201,7 +221,7 @@ export function renderShareCard(result, sizeKey, canvas) {
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, width, height);
   ctx.beginPath();
-  ctx.roundRect(24, 24, width - 48, height - 48, 28);
+  roundedRectPath(ctx, 24, 24, width - 48, height - 48, 28);
   ctx.fillStyle = COLORS.panel;
   ctx.fill();
   ctx.strokeStyle = COLORS.line;
@@ -211,7 +231,7 @@ export function renderShareCard(result, sizeKey, canvas) {
   // Radar motif, clipped to the panel so rings never bleed over the frame.
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(25, 25, width - 50, height - 50, 27);
+  roundedRectPath(ctx, 25, 25, width - 50, height - 50, 27);
   ctx.clip();
   drawRadarMotif(ctx, L.ringCenter[0], L.ringCenter[1], L.ringRadius);
   ctx.restore();
