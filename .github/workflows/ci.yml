@@ -36,6 +36,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # The share-card smoke test drives /site/, which imports the generated
+      # site bundle (same step the Pages deploy runs).
+      - run: node scripts/prepare-site.mjs
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       # GitHub's standard runners have no GPU. Observed behavior (see
       # CONTRIBUTING.md): Chromium falls back to SwiftShader software WebGPU
