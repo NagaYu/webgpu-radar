@@ -1,5 +1,19 @@
 # webgpu-radar
 
+## STATUS: single-device measurement complete
+
+**The quirks database has 0 entries. That is a consequence of the schema's own
+rule: no entry may be added unless the behaviour was actually reproduced, with
+`verifiedDate` set to the date of reproduction. Populating it requires many
+real devices, browsers and driver combinations, which single-device measurement
+cannot provide. The rule is correct and is not being relaxed to fill the table.**
+
+What this tool does well is measure the browser it is running in: adapter
+limits and compute micro-benchmarks. The aggregate across
+browsers you do not own is a different problem and is not solved here.
+
+---
+
 > Real WebGPU capability detection for browser AI — compute-shader micro-benchmarks, a community quirks database, and tiered recommendations with WASM fallback. Not just `if (navigator.gpu)`.
 
 [![CI](https://github.com/NagaYu/webgpu-radar/actions/workflows/ci.yml/badge.svg)](https://github.com/NagaYu/webgpu-radar/actions/workflows/ci.yml)
@@ -8,6 +22,8 @@
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 `if (navigator.gpu)` tells you the API *exists*. It does not tell you whether WebGPU is actually **fast, stable, or safe to use** on this browser + OS + GPU. Implementation quality still varies wildly: compute cold-start can take seconds, reported buffer limits don't always match what really allocates, and some combinations are present-but-broken in ways no feature check catches. If you're shipping in-browser AI (WebLLM, Transformers.js, image processing), the question is never "does WebGPU exist?" — it's **"should I use it for this user, right now?"**
+
+webgpu-radar answers that question for one browser at a time: the one it is running in. [What this cannot measure](#what-this-cannot-measure) says where that stops.
 
 **[▶ Live demo — probe your browser now](https://nagayu.github.io/webgpu-radar/)**
 
@@ -33,13 +49,29 @@ switch (result.tier) {
 console.log(result.reasons); // human-readable "why this tier"
 ```
 
-## What it does
+## What this measures
 
-1. **Detects real capability** — requests an adapter *and* device, reads `adapter.info`, then times a shader compile and a small matmul on the actual GPU. Opt-in `full` mode adds round-trip bandwidth and an empirical max-buffer search (the reported limit is a promise; we find what *actually* allocates and round-trips).
-2. **Classifies into a tier** — `webgpu-full` / `webgpu-limited` / `wasm-simd` / `wasm-basic` / `unsupported`, via a [documented decision tree](#how-tiers-are-decided) with named, overridable thresholds.
-3. **Cross-references known quirks** — a community-maintained database of verified browser/OS/GPU-specific WebGPU bugs can override the tier even when benchmarks look fine.
-4. **Falls back honestly** — WASM SIMD is detected by validating a real SIMD module, never by UA lookup.
-5. **Generates a shareable report** — anonymized JSON/Markdown (browser family, OS family, GPU vendor/architecture, numbers — no UA string, nothing fingerprint-adjacent) ready to paste into a [quirk report](https://github.com/NagaYu/webgpu-radar/issues/new?template=quirk-report.yml).
+Everything here is measured live, in the browser that calls `probe()`, on whatever GPU and driver that browser was given.
+
+1. **Real capability, step by step.** Checks that `navigator.gpu` exists, that `requestAdapter()` returns an adapter, and that `requestDevice()` gives a device that isn't lost straight away. If a step fails, the result records which one and why.
+2. **Adapter identity and limits.** Reads vendor and architecture from `adapter.info`, falling back to the legacy `requestAdapterInfo()`. Requests the device with the adapter's own buffer limits. In `full` mode it also checks the reported `maxStorageBufferBindingSize` against the largest buffer that actually allocates and round-trips. A reported limit is a promise, and this measures whether the promise holds.
+3. **Compute micro-benchmarks on the actual device.** `quick` mode (the default) times a cold shader compile and a small matmul (GFLOPS). `full` mode adds round-trip bandwidth and the empirical max-buffer search.
+4. **WASM fallback.** Detects WASM availability, SIMD and threads. SIMD is detected by validating a real SIMD module, never by UA lookup.
+5. **A graded recommendation.** Sorts the result into `webgpu-full` / `webgpu-limited` / `wasm-simd` / `wasm-basic` / `unsupported` using a [documented decision tree](#how-tiers-are-decided) with named thresholds you can override, and gives `reasons` for the choice.
+6. **A report of exactly that.** Produces anonymized JSON/Markdown with browser family, OS family, GPU vendor/architecture and the numbers, but no UA string and nothing fingerprint-adjacent. It's ready to paste into a [quirk report](https://github.com/NagaYu/webgpu-radar/issues/new?template=quirk-report.yml).
+
+The quirks matcher runs on every probe, but against a database with **0 entries** (see [STATUS](#status-single-device-measurement-complete)). Today it never changes a tier.
+
+## What this cannot measure
+
+Anything outside the browser that calls `probe()`.
+
+- **Driver-specific behaviour.** A driver bug shows up only if this browser happens to run on that driver *and* the bug surfaces as a failure or a slow number in the micro-benchmarks. Wrong compute results, device loss under real (not micro-benchmark) workloads and other present-but-broken behaviour that benchmarks miss were meant for the quirks database. It has 0 entries.
+- **Other GPU vendors, other OSes, other browser versions.** A probe on an Apple GPU says nothing about NVIDIA on Windows. Chrome on this machine says nothing about an older Chrome, or about Safari or Firefox.
+- **The aggregate.** Answering "what share of my users get `webgpu-full`?" takes measurements from devices you don't own. The library never transmits anything, so it cannot collect them, and this repository keeps no registry of shared results.
+- **Cross-hardware threshold calibration.** The default thresholds come from a handful of measurements: one Apple Silicon Mac plus GPU-less CI runners (see [How tiers are decided](#how-tiers-are-decided)). They are not statistics across devices, which is why every one of them can be overridden.
+
+The argument at the top still holds: `if (navigator.gpu)` is not enough, because an API being present doesn't make it usable. But the argument reaches only as far as the browser you're in. `probe()` replaces a presence check with a measurement *of this browser*. It does not tell you about browsers it has never run in.
 
 ## vs. the alternatives
 
@@ -48,7 +80,7 @@ console.log(result.reasons); // human-readable "why this tier"
 | Detects API presence | ✅ | — (WebGL-based) | ✅ |
 | Actually exercises the GPU | ❌ | ✅ WebGL render FPS | ✅ WebGPU compute shaders |
 | WebGPU compute / buffer limits | ❌ | ❌ | ✅ |
-| Known-bug (quirks) awareness | ❌ | ❌ | ✅ community DB |
+| Known-bug (quirks) awareness | ❌ | ❌ | ⚠️ matcher only (DB: 0 entries) |
 | WASM fallback detection | ❌ | ❌ | ✅ |
 | AI-workload-oriented tiering | ❌ | ❌ (rendering tiers) | ✅ |
 | Zero runtime dependencies | ✅ | ❌ (fetches benchmark data) | ✅ |
@@ -113,7 +145,7 @@ Got a device where the tier looks wrong, or WebGPU misbehaves in a way benchmark
 1. Run the [live demo](https://nagayu.github.io/webgpu-radar/) (or `generateReport()` in your app) on the affected machine.
 2. Click **Copy report** and paste it into a [quirk report issue](https://github.com/NagaYu/webgpu-radar/issues/new?template=quirk-report.yml).
 
-The quirks database ships **empty rather than padded**: entries require verified, current evidence (ideally an upstream bug link), because a wrong quirk entry misclassifies real users' machines. See [CONTRIBUTING.md](CONTRIBUTING.md) for the entry schema and review bar.
+The quirks database [`src/quirks/db.json`](src/quirks/db.json) has **0 entries**. That's on purpose. An entry may be added only after someone has reproduced the behaviour on real hardware, with `verifiedDate` set to the day it was reproduced ([schema](src/quirks/schema.ts)), and ideally with an upstream bug link. A wrong quirk entry misclassifies real users' machines. That rule stays, so an entry can only come from a real device that shows the problem. See [CONTRIBUTING.md](CONTRIBUTING.md) for the entry schema and review bar.
 
 ## License
 
